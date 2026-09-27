@@ -1,6 +1,5 @@
 import base64
 import json
-import pickle
 
 import pika
 
@@ -44,7 +43,7 @@ def publish_plantilla(titulo: str, descripcion: str, etiquetas: list, usuario_id
         "etiquetas": etiquetas,
         "usuario_id": usuario_id,
     }
-    payload_codificado = base64.b64encode(pickle.dumps(plantilla)).decode()
+    payload_codificado = base64.b64encode(json.dumps(plantilla).encode()).decode()
     channel.basic_publish(
         exchange="",
         routing_key=PLANTILLA_QUEUE,
