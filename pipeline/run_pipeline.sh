@@ -72,26 +72,35 @@ else
   agregar_resumen "[OK]  Secretos (gitleaks): 0 hallazgos"
 fi
 
-# --- 3. SAST (bandit) - bloquea con HIGH o CRITICAL ---
+# --- 3. SAST (bandit) - bloquea con HIGH/CRITICAL, o con cualquier funcion
+# de la "blacklist" (B3xx: pickle, eval, subprocess con shell, etc.), sin
+# importar su severidad. Se agrego el segundo criterio en la Entrega Final:
+# la Entrega Final expuso que bandit marca pickle.loads() (B301) como
+# severidad MEDIUM, asi que el umbral original (solo HIGH/CRITICAL) dejaba
+# pasar una deserializacion insegura real. Ver docs/clasificacion_hallazgo.md.
 linea
-echo "[3/5] Analisis estatico de codigo (bandit) - umbral: 0 hallazgos HIGH"
+echo "[3/5] Analisis estatico de codigo (bandit) - umbral: 0 HIGH/CRITICAL y 0 funciones de riesgo (B3xx)"
 "$BANDIT" -r app/ -ll -f json -o reportes/bandit.json > /tmp/bandit.log 2>&1
 BANDIT_HIGH=$("$PY" -c "
 import json
 try:
     data = json.load(open('reportes/bandit.json'))
-    n = sum(1 for r in data.get('results', []) if r.get('issue_severity') in ('HIGH','CRITICAL'))
+    n = sum(
+        1 for r in data.get('results', [])
+        if r.get('issue_severity') in ('HIGH', 'CRITICAL')
+        or r.get('test_id', '').startswith('B3')
+    )
     print(n)
 except Exception:
     print(0)
 ")
-echo "  Hallazgos HIGH/CRITICAL: $BANDIT_HIGH"
+echo "  Hallazgos HIGH/CRITICAL o de funciones de riesgo (B3xx): $BANDIT_HIGH"
 if [ "$BANDIT_HIGH" -gt 0 ]; then
   echo "  >> Etapa BLOQUEA: bandit encontro codigo inseguro"
-  agregar_resumen "[BLOQUEA] SAST (bandit): $BANDIT_HIGH hallazgos HIGH/CRITICAL"
+  agregar_resumen "[BLOQUEA] SAST (bandit): $BANDIT_HIGH hallazgos HIGH/CRITICAL o B3xx"
   BLOQUEA=1
 else
-  agregar_resumen "[OK]  SAST (bandit): 0 hallazgos HIGH/CRITICAL"
+  agregar_resumen "[OK]  SAST (bandit): 0 hallazgos HIGH/CRITICAL o B3xx"
 fi
 
 # --- 4. Dependencias vulnerables (pip-audit) - bloquea con cualquier CVE conocido ---
