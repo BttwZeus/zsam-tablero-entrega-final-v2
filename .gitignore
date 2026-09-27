@@ -1,0 +1,18 @@
+# Nunca subas credenciales ni entornos locales
+.env
+*.pem
+venv/
+__pycache__/
+*.pyc
+bin/
+
+# Entornos virtuales del pipeline (se recrean con run_pipeline.sh)
+pipeline/.venv/
+pipeline/.venv-app/
+
+# Terraform
+infra/.terraform/
+infra/*.tfstate
+infra/*.tfstate.backup
+infra/*.tfvars
+

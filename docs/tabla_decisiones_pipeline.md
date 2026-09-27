@@ -1,0 +1,32 @@
+# Tabla de decisiones de mi pipeline
+
+Este documento es el corazon de la entrega: no se califica cuantos controles
+puse, sino que pueda justificar cada uno.
+
+## Riesgos que introduce MI aplicacion
+
+| # | Riesgo concreto de mi app | Que control lo cubre | Por que ese control |
+|---|---|---|---|
+| 1 | Guardo passwords de usuarios y strings de conexion a la base en variables de entorno y en codigo Python que yo mismo escribo (con ayuda de IA); es facil pegar por accidente una credencial real en un archivo que se comitea. | Escaneo de secretos (gitleaks) | Es el unico control que atrapa un secreto real antes de que llegue al repositorio remoto; un `.gitignore` no protege si alguien fuerza el `git add`. |
+| 2 | La API recibe entradas de usuario en casi todos sus endpoints (titulo de tarjeta, nombre de tablero, archivo adjunto) y las paso a SQLAlchemy y a boto3; un error de mi parte (o de la IA que me ayudo) podria introducir una consulta insegura o un uso incorrecto de criptografia. | Analisis estatico (bandit) | Bandit conoce los patrones inseguros comunes en Python (SQL armado con f-strings, `eval`, hashes debiles) y los senala antes de que yo los note revisando a mano. |
+| 3 | El backend depende de ~10 paqueterias de terceros (FastAPI, SQLAlchemy, boto3, pika, passlib...) que yo no escribi y que pueden tener CVEs conocidos ya publicados. | Analisis de dependencias (pip-audit) | Un CVE conocido en una libreria que uso es un riesgo real e inmediato, no hipotetico: pip-audit lo cruza contra la base de datos publica de vulnerabilidades de Python (PyPA Advisory Database). |
+| 4 | Cree mi bucket S3 y mi RDS a mano/con Terraform; es facil dejar por error el bucket con acceso publico o la base de datos sin cifrar, que es exactamente lo que el reto pide evitar. | Escaneo de IaC (checkov) | Revisa el `.tf` antes de aplicarlo, asi que un error de configuracion se detecta en mi maquina y no despues de que el recurso ya existe expuesto en AWS. |
+
+## Mis etapas y sus umbrales
+
+| Etapa | Herramienta | Que revisa | Umbral que bloquea | Por que ese umbral |
+|---|---|---|---|---|
+| 1. SBOM | cyclonedx-py | Genera el inventario de dependencias Python en formato CycloneDX | No bloquea (es evidencia, no control) | Un SBOM sirve para auditar despues qué había instalado en el momento del despliegue; exigir que "pase" no tiene sentido, exigir que exista si. |
+| 2. Secretos | gitleaks | Busca patrones de credenciales (API keys, tokens, contraseñas) en todo el codigo fuente | Bloquea con **cualquier hallazgo (> 0)** | No existe un secreto "aceptable" en el repositorio: un solo hallazgo real es una credencial filtrada, así que el umbral es cero por definicion. |
+| 3. SAST | bandit | Analiza `app/` en busca de patrones de codigo inseguro en Python | Bloquea con **>= 1 hallazgo HIGH o CRITICAL** (ignora LOW/MEDIUM) | Bandit marca como LOW/MEDIUM cosas como "usas `subprocess` " que en mi app son necesarias y no explotables; bloquear ahi generaria ruido constante sin bloquear nada real. HIGH/CRITICAL si son patrones con explotacion directa. |
+| 4. Dependencias | pip-audit | Cruza las dependencias declaradas en `app/requirements.txt` contra CVEs conocidos | Bloquea con **cualquier CVE conocido en una dependencia de la app (> 0)** | A diferencia de bandit, aqui no hay gradacion util: un CVE publicado en una libreria que uso en produccion es explotable por definicion, asi que no me arriesgo a fijar un umbral mas permisivo. |
+| 5. IaC | checkov | Analiza `infra/*.tf` contra reglas de seguridad de AWS | Bloquea con **cualquier fallo en los controles de linea base** (acceso publico y cifrado de S3/RDS); se excluyen explicitamente controles de "excelencia operativa" fuera de alcance (ver abajo) | El reto exige especificamente "privado, cifrado, sin acceso publico" — eso es lo que bloquea. Excluyo controles que no corresponden a un proyecto de curso en un Learner Lab. |
+
+## Lo que decidi NO cubrir
+
+| Riesgo que dejo fuera | Por que lo dejo fuera | Que haria si tuviera mas tiempo |
+|---|---|---|
+| Escaneo de vulnerabilidades de la imagen de contenedor final (Trivy sobre la imagen ya construida) | Bandit y pip-audit ya cubren el codigo propio y las dependencias Python; agregar Trivy hubiera sido redundante con el mismo riesgo (dependencias vulnerables) usando otra herramienta, y el reto pide justificar controles, no acumularlos. | Agregaria Trivy sobre la imagen final para cubrir tambien vulnerabilidades del sistema operativo base (paquetes `apt` de la imagen `python:3.12-slim`), que pip-audit no ve. |
+| Multi-AZ, monitoreo mejorado, Performance Insights, replicacion entre regiones, autenticacion IAM y logging de acceso en S3/RDS (controles de checkov: `CKV_AWS_157`, `CKV_AWS_118`, `CKV_AWS_353`, `CKV_AWS_144`, `CKV_AWS_161`, `CKV_AWS_18`, `CKV2_AWS_61`, `CKV2_AWS_62`, `CKV2_AWS_30`, `CKV_AWS_145`, `CKV_AWS_293`) | Son controles de "excelencia operativa" y alta disponibilidad para produccion real, no de seguridad de linea base. Multi-AZ y monitoreo mejorado ademas duplican el costo del recurso, lo cual no tiene sentido en un Learner Lab con credito limitado y de vida corta. Bloquear por esto haria que el pipeline nunca llegara a verde en un entorno academico legitimo. | En un despliegue real de produccion (no de curso) activaria Multi-AZ, logging de acceso y KMS en vez de SSE-S3 antes de recibir trafico real de usuarios. |
+| Pruebas de penetracion dinamicas (DAST) contra la API corriendo | Mi ventana de tiempo para el Avance 2 no alcanzaba para agregar y justificar una sexta etapa; SAST + analisis de dependencias ya cubren la superficie de riesgo mas probable en una app de este tamano (validacion de entrada y librerias vulnerables). | Agregaria OWASP ZAP contra un ambiente de staging antes de cada release, bloqueando con hallazgos HIGH confirmados. |
+| Versionado del bucket S3 (`CKV_AWS_21`) | Lo intente activar, pero la cuenta de AWS Academy que uso tiene una politica de organizacion (SCP) que bloquea por completo la llamada de lectura de Object Lock que Terraform hace al gestionar el versionado de un bucket — cualquier intento de aplicarlo falla con "AccessDenied" sin importar la configuracion. No es una decision de riesgo, es una restriccion externa de la cuenta que no puedo levantar yo mismo. | En una cuenta sin esa restriccion, activaria versionado para poder recuperar un adjunto si un usuario lo borra o sobreescribe por error. |

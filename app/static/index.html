@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tablero — Gestor de tareas colaborativo</title>
+<style>
+  :root {
+    --azul: #4a67f5;
+    --azul-oscuro: #2f3fb0;
+    --fondo: #f4f6fb;
+    --tarjeta: #ffffff;
+    --borde: #e2e6f0;
+    --texto: #1f2430;
+    --texto-suave: #6b7280;
+    --verde: #1e9e6a;
+    --naranja: #d97706;
+    --gris: #9ca3af;
+    --radio: 12px;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    background: var(--fondo);
+    color: var(--texto);
+    margin: 0;
+    padding: 2rem 1rem 4rem;
+  }
+
+  .contenedor { max-width: 900px; margin: 0 auto; }
+
+  header.app-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 2rem;
+  }
+
+  header.app-header .logo {
+    width: 42px; height: 42px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, var(--azul), var(--azul-oscuro));
+    display: flex; align-items: center; justify-content: center;
+    color: white; font-weight: 700; font-size: 1.3rem;
+    box-shadow: 0 4px 14px rgba(74,103,245,0.35);
+  }
+
+  header.app-header h1 { font-size: 1.4rem; margin: 0; }
+  header.app-header p { margin: 0; color: var(--texto-suave); font-size: 0.85rem; }
+
+  .panel {
+    background: var(--tarjeta);
+    border: 1px solid var(--borde);
+    border-radius: var(--radio);
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 1px 3px rgba(16,24,40,0.04);
+  }
+
+  .panel h2 {
+    margin: 0 0 1rem;
+    font-size: 1.05rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .fila { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+  .fila > * { flex: 1; min-width: 160px; }
+
+  label { font-size: 0.8rem; color: var(--texto-suave); display: block; margin: 0.5rem 0 0.2rem; }
+
+  input {
+    width: 100%;
+    padding: 0.55rem 0.7rem;
+    border: 1px solid var(--borde);
+    border-radius: 8px;
+    font-size: 0.9rem;
+    background: #fbfcfe;
+  }
+  input:focus { outline: 2px solid var(--azul); border-color: transparent; }
+
+  button {
+    padding: 0.55rem 1.1rem;
+    border: none;
+    border-radius: 8px;
+    background: var(--azul);
+    color: white;
+    font-weight: 600;
+    font-size: 0.85rem;
+    cursor: pointer;
+    margin-top: 0.6rem;
+    transition: background 0.15s;
+  }
+  button:hover { background: var(--azul-oscuro); }
+  button.secundario {
+    background: transparent;
+    color: var(--azul);
+    border: 1px solid var(--azul);
+  }
+  button.secundario:hover { background: #eef1ff; }
+
+  #auth-status {
+    font-size: 0.85rem;
+    margin-top: 0.6rem;
+    color: var(--texto-suave);
+  }
+  #auth-status.error { color: #c0392b; }
+  #auth-status.ok { color: var(--verde); }
+
+  .grid-tableros {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 0.75rem;
+    margin-top: 1rem;
+  }
+
+  .tablero-card {
+    border: 1px solid var(--borde);
+    border-radius: 10px;
+    padding: 1rem;
+    background: linear-gradient(180deg, #fbfcff, #f6f8ff);
+  }
+  .tablero-card .nombre { font-weight: 700; margin-bottom: 0.6rem; }
+
+  .grid-tarjetas {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 0.75rem;
+    margin-top: 1rem;
+  }
+
+  .tarjeta-card {
+    border: 1px solid var(--borde);
+    border-left: 4px solid var(--azul);
+    border-radius: 10px;
+    padding: 0.9rem;
+    background: #fbfcfe;
+  }
+  .tarjeta-card .titulo { font-weight: 700; margin-bottom: 0.4rem; }
+  .tarjeta-card .meta { font-size: 0.8rem; color: var(--texto-suave); margin: 0.15rem 0; }
+
+  .badge {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+  }
+  .badge.pendiente { background: #fef3c7; color: var(--naranja); }
+  .badge.hecho { background: #d1fae5; color: var(--verde); }
+  .badge.otro { background: #e5e7eb; color: var(--texto-suave); }
+
+  .vacio { color: var(--texto-suave); font-size: 0.85rem; font-style: italic; }
+
+  .oculto { display: none; }
+</style>
+</head>
+<body>
+<div class="contenedor">
+
+  <header class="app-header">
+    <div class="logo">T</div>
+    <div>
+      <h1>Tablero</h1>
+      <p>Gestor de tareas colaborativo — reto LSCA2314</p>
+    </div>
+  </header>
+
+  <section class="panel" id="auth">
+    <h2>👤 Cuenta</h2>
+    <div class="fila">
+      <div>
+        <label>Correo</label>
+        <input id="email" placeholder="tu@correo.com" type="email">
+      </div>
+      <div>
+        <label>Contraseña</label>
+        <input id="password" placeholder="••••••••" type="password">
+      </div>
+    </div>
+    <button onclick="registro()">Registrarme</button>
+    <button class="secundario" onclick="login()">Iniciar sesión</button>
+    <p id="auth-status"></p>
+  </section>
+
+  <section class="panel oculto" id="tableros">
+    <h2>📋 Tableros</h2>
+    <div class="fila">
+      <input id="nombre-tablero" placeholder="Nombre del tablero (ej. Sprint 4)">
+      <button onclick="crearTablero()">+ Crear tablero</button>
+    </div>
+    <div class="grid-tableros" id="lista-tableros"></div>
+  </section>
+
+  <section class="panel oculto" id="tarjetas">
+    <h2>🗂️ Tarjetas de "<span id="nombre-tablero-actual"></span>"</h2>
+    <div class="fila">
+      <div>
+        <label>Título</label>
+        <input id="titulo-tarjeta" placeholder="Ej. Entregar reporte">
+      </div>
+      <div>
+        <label>Asignado a (opcional)</label>
+        <input id="asignado-tarjeta" placeholder="correo@equipo.com">
+      </div>
+      <div>
+        <label>Fecha límite</label>
+        <input id="fecha-tarjeta" type="datetime-local">
+      </div>
+    </div>
+    <button onclick="crearTarjeta()">+ Crear tarjeta</button>
+    <div class="grid-tarjetas" id="lista-tarjetas"></div>
+  </section>
+
+</div>
+
+<script>
+let token = null;
+let tableroActual = null;
+
+async function registro() {
+  const email = document.getElementById('email').value;
+  const password = document.getElementById('password').value;
+  const res = await fetch('/auth/registro', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({email, password})
+  });
+  await manejarAuth(res);
+}
+
+async function login() {
+  const email = document.getElementById('email').value;
+  const password = document.getElementById('password').value;
+  const res = await fetch('/auth/login', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({email, password})
+  });
+  await manejarAuth(res);
+}
+
+async function manejarAuth(res) {
+  const estado = document.getElementById('auth-status');
+  if (!res.ok) {
+    const data = await res.json();
+    const detalle = Array.isArray(data.detail)
+      ? data.detail.map(e => e.msg).join(', ')
+      : data.detail;
+    estado.textContent = 'Error: ' + detalle;
+    estado.className = 'error';
+    return;
+  }
+  const data = await res.json();
+  token = data.token;
+  estado.textContent = '✓ Sesión iniciada';
+  estado.className = 'ok';
+  document.getElementById('tableros').classList.remove('oculto');
+  cargarTableros();
+}
+
+async function crearTablero() {
+  const name = document.getElementById('nombre-tablero').value;
+  if (!name) { alert('Ponle un nombre al tablero'); return; }
+  await fetch('/boards', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json', 'Authorization': 'Bearer ' + token},
+    body: JSON.stringify({name})
+  });
+  document.getElementById('nombre-tablero').value = '';
+  cargarTableros();
+}
+
+async function cargarTableros() {
+  const res = await fetch('/boards', {headers: {'Authorization': 'Bearer ' + token}});
+  const tableros = await res.json();
+  const div = document.getElementById('lista-tableros');
+  if (tableros.length === 0) {
+    div.innerHTML = '<p class="vacio">Aun no tienes tableros. Crea el primero arriba.</p>';
+    return;
+  }
+  div.innerHTML = tableros.map(t => `
+    <div class="tablero-card">
+      <div class="nombre">${t.name}</div>
+      <button class="secundario" onclick="verTarjetas('${t.id}', '${t.name}')">Ver tarjetas →</button>
+    </div>
+  `).join('');
+}
+
+async function verTarjetas(boardId, nombreTablero) {
+  tableroActual = boardId;
+  document.getElementById('nombre-tablero-actual').textContent = nombreTablero;
+  document.getElementById('tarjetas').classList.remove('oculto');
+  document.getElementById('tarjetas').scrollIntoView({behavior: 'smooth'});
+  await cargarTarjetas();
+}
+
+function badgeClase(status) {
+  if (status === 'pendiente') return 'pendiente';
+  if (status === 'hecho' || status === 'completado') return 'hecho';
+  return 'otro';
+}
+
+async function cargarTarjetas() {
+  const res = await fetch(`/boards/${tableroActual}/cards`, {headers: {'Authorization': 'Bearer ' + token}});
+  const tarjetas = await res.json();
+  const div = document.getElementById('lista-tarjetas');
+  if (tarjetas.length === 0) {
+    div.innerHTML = '<p class="vacio">Sin tarjetas todavia. Crea la primera arriba.</p>';
+    return;
+  }
+  div.innerHTML = tarjetas.map(t => `
+    <div class="tarjeta-card">
+      <div class="titulo">${t.title}</div>
+      <span class="badge ${badgeClase(t.status)}">${t.status}</span>
+      ${t.assignee_email ? `<div class="meta">👤 ${t.assignee_email}</div>` : ''}
+      ${t.due_date ? `<div class="meta">⏰ Vence: ${new Date(t.due_date).toLocaleString()}</div>` : ''}
+      <button class="secundario" onclick="verRecordatorios('${t.id}')">Ver recordatorios</button>
+    </div>
+  `).join('');
+}
+
+async function crearTarjeta() {
+  const title = document.getElementById('titulo-tarjeta').value;
+  const assignee_email = document.getElementById('asignado-tarjeta').value;
+  const fechaInput = document.getElementById('fecha-tarjeta').value;
+  const due_date = fechaInput ? new Date(fechaInput).toISOString() : null;
+
+  if (!title) { alert('Ponle un titulo a la tarjeta'); return; }
+
+  await fetch(`/boards/${tableroActual}/cards`, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json', 'Authorization': 'Bearer ' + token},
+    body: JSON.stringify({title, assignee_email, due_date})
+  });
+
+  document.getElementById('titulo-tarjeta').value = '';
+  document.getElementById('asignado-tarjeta').value = '';
+  document.getElementById('fecha-tarjeta').value = '';
+  await cargarTarjetas();
+}
+
+async function verRecordatorios(cardId) {
+  const res = await fetch(`/cards/${cardId}/recordatorios`, {headers: {'Authorization': 'Bearer ' + token}});
+  const recordatorios = await res.json();
+  if (recordatorios.length === 0) {
+    alert('Aun no hay recordatorios procesados por el worker para esta tarjeta (puede tardar un par de segundos).');
+    return;
+  }
+  alert(recordatorios.map(r => r.mensaje).join('\n'));
+}
+</script>
+</body>
+</html>

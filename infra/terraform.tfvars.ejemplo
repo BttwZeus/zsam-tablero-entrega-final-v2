@@ -1,0 +1,16 @@
+# Copia este archivo como terraform.tfvars (esta en .gitignore, nunca se comitea)
+# y llena tus valores antes de correr terraform apply.
+
+app_name    = "zeus-gestor-tareas"
+aws_region  = "us-east-1"
+db_name     = "tablero"
+db_username = "tablero"
+
+# No pongas la password aqui si vas a comitear este archivo por error.
+# Mejor: exporta TF_VAR_db_password="tu-password" antes de correr terraform apply,
+# o usa -var="db_password=tu-password" en la linea de comandos.
+# db_password = "definela-por-variable-de-entorno"
+
+# El CIDR desde el que tu instancia EC2 del Learner Lab alcanza la RDS
+# (normalmente la subred de tu VPC por defecto, ej: 172.31.0.0/16)
+allowed_app_cidr = "172.31.0.0/16"
