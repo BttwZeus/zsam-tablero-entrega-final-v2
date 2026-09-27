@@ -12,7 +12,6 @@ pipeline/.venv-app/
 
 # Terraform
 infra/.terraform/
-infra/*.tfstate
-infra/*.tfstate.backup
+infra/*.tfstate*
 infra/*.tfvars
 

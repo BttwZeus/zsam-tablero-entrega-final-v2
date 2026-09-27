@@ -5,7 +5,7 @@ import pika
 
 from config import settings
 from database import Base, SessionLocal, engine
-from importar_plantilla_tarea import procesar_mensaje_plantilla
+from importar_plantilla_tarea import PlantillaInvalida, procesar_mensaje_plantilla
 from models import Reminder
 from queue_client import PLANTILLA_QUEUE
 
@@ -38,9 +38,18 @@ def procesar_mensaje(ch, method, properties, body):
 
 
 def _procesar_mensaje_plantilla_cola(ch, method, properties, body):
-    mensaje_cola = json.loads(body)
-    procesar_mensaje_plantilla(mensaje_cola)
-    ch.basic_ack(delivery_tag=method.delivery_tag)
+    # Un mensaje individual invalido (formato incorrecto o datos que no
+    # corresponden a un usuario real) nunca debe tumbar el proceso worker
+    # completo, que tambien atiende la cola de recordatorios.
+    try:
+        mensaje_cola = json.loads(body)
+        procesar_mensaje_plantilla(mensaje_cola)
+    except (PlantillaInvalida, json.JSONDecodeError) as exc:
+        print(f"Plantilla rechazada, mensaje descartado: {exc}", flush=True)
+    except Exception as exc:
+        print(f"Error inesperado procesando plantilla, mensaje descartado: {exc}", flush=True)
+    finally:
+        ch.basic_ack(delivery_tag=method.delivery_tag)
 
 
 def main():
