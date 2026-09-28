@@ -4,10 +4,10 @@
 
 La cuenta original de AWS Academy Learner Lab usada en el Avance 2 se quedó
 sin crédito/tokens durante esta entrega. Con autorización explícita, se
-usaron temporalmente las credenciales del Learner Lab de un compañero
-(Kevin Adrian Morales Palomo) para poder completar el flujo de QA →
-Producción. Todos los recursos creados en esa cuenta se etiquetaron con el
-prefijo `zsam` para dejar clara su propiedad:
+usaron temporalmente las credenciales del Learner Lab de un compañero de
+clase para poder completar el flujo de QA → Producción. Todos los recursos
+creados en esa cuenta se etiquetaron con el prefijo `zsam` para dejar clara
+su propiedad:
 
 - Instancia **QA**: `zsam-qa` (`i-09e077daf942c49fa`), IP pública `54.214.155.197`.
   No es literalmente la misma instancia EC2 del Avance 2 (esa quedó en la
