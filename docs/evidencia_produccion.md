@@ -32,9 +32,9 @@ entrega, ya que el checklist de evidencia de la Entrega Final no la requiere
 y así se evita duplicar el gasto de una base de datos gestionada que no se
 iba a usar activamente.
 
-**Commit desplegado en ambas instancias:** `a7f80ef`
+**Commit desplegado en ambas instancias:** `da83ce5`
 ("Endurece el consumidor de plantillas y cierra hueco de gitignore en
-infra/"), que incluye la remediación de `cffe15b`
+infra/"), que incluye la remediación de `55416b1`
 ("Remedia deserializacion insegura en importar_plantilla_tarea (CWE-502)").
 
 ## Verificación
